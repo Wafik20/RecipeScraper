@@ -13,8 +13,6 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
     print("Error: OPENAI_API_KEY is not set. Please check your .env file.")
     exit()
-else:
-    print("OPENAI_API_KEY:", OPENAI_API_KEY)
 
 graph_config = {
    "llm": {
@@ -37,10 +35,10 @@ RECIPE_CATEGORIES = [
     "Ice Cream",
     "Other",
     "Pies",
-    "meat",
-    "poultry", 
-    "seafood", 
-    "other",
+    "Meat",
+    "Poultry", 
+    "Seafood", 
+    "Other",
     "Salads",
     "Sauces & Dressings",
     "Snacks",
