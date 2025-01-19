@@ -1,2 +1,3 @@
 .env
 llm_scraper/
+__pycache__/

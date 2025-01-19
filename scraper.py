@@ -1,8 +1,8 @@
 from dotenv import load_dotenv
+import json
 import os
 from scrapegraphai.graphs import SmartScraperGraph
 from scrapegraphai.utils import prettify_exec_info
-
 
 # Load the .env file
 load_dotenv()
@@ -23,16 +23,95 @@ graph_config = {
    },
 }
 
-# ************************************************
-# Create the SmartScraperGraph instance and run it
-# ************************************************
+# Define available categories
+RECIPE_CATEGORIES = [
+    "Breakfast",
+    "Lunch", 
+    "Dinner",
+    "Snack",
+    "Dessert"
+]
 
-smart_scraper_graph = SmartScraperGraph(
-   prompt="List me all the projects with their description.",
-   # also accepts a string with the already downloaded HTML code
-   source="https://perinim.github.io/projects/",
-   config=graph_config
-)
+# Define measurement units
+MEASUREMENT_UNITS = [
+    "clove", "cloves", "cup", "cups", "fl oz", "gallon", "grams", 
+    "head", "lb", "ml", "oz", "pieces", "pinch", "pint", "quart", 
+    "sprig", "sprigs", "Tbsp", "tsp", "whole"
+]
 
-result = smart_scraper_graph.run()
-print(result)
+# Define fields to extract
+RECIPE_FIELDS = {
+    "title": "Recipe Title",
+    "description": "Descriptive Text",
+    "photo": "Recipe Photo",
+    "category": {
+        "field": "Category",
+        "options": RECIPE_CATEGORIES
+    },
+    "ingredients": {
+        "fields": [
+            "ingredient name",
+            "quantity",
+            {"measurement_unit": MEASUREMENT_UNITS},
+            "notes"
+        ]
+    },
+    "instructions": {
+        "fields": [
+            "step number",
+            "description"
+        ]
+    },
+    "prep_time": "Prep Time",
+    "cook_time": "Cook Time",
+    "difficulty": {
+        "field": "Difficulty",
+        "scale": "1-5"
+    },
+    "servings": "Number of servings",
+    "original_link": "Link to original recipe",
+    "video_link": "Link to video"
+}
+
+# Build the prompt dynamically
+def build_extraction_prompt(fields=RECIPE_FIELDS):
+    prompt = "Extract the following information from the recipe:\n"
+    for key, value in fields.items():
+        if isinstance(value, dict):
+            if "options" in value:
+                prompt += f"{value['field']} (one from the following: {', '.join(value['options'])}), "
+            elif "fields" in value:
+                subfields = [
+                    f"{field['measurement_unit']} (one of the following: {MEASUREMENT_UNITS})" 
+                    if isinstance(field, dict) and 'measurement_unit' in field
+                    else field
+                    for field in value['fields']
+                ]
+                prompt += f"{key.title()} ({', '.join(subfields)}), "
+            elif "scale" in value:
+                prompt += f"{value['field']} (scale from {value['scale']}), "
+        else:
+            prompt += f"{value}, "
+    
+    return prompt.rstrip(", ")
+
+def scrape_recipe(url):
+    # Create the SmartScraperGraph instance and run it
+    smart_scraper_graph = SmartScraperGraph(
+        prompt=build_extraction_prompt(),
+        source=url,
+        config=graph_config
+    )
+
+    result = smart_scraper_graph.run()
+    return result
+
+import json
+
+# print a pretty json response
+def print_json(json_data):
+    print(json.dumps(json_data, indent=4))
+
+# print a pretty json response
+
+print_json(scrape_recipe("https://foodsocial.io/recipe/grilled-pineapple-marinated-chicken/"))
