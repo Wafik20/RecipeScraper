@@ -25,11 +25,26 @@ graph_config = {
 
 # Define available categories
 RECIPE_CATEGORIES = [
+    "Appetizers",
+    "Baked Goods",
+    "Beverages",
     "Breakfast",
-    "Lunch", 
-    "Dinner",
-    "Snack",
-    "Dessert"
+    "Cakes",
+    "Candies",
+    "Cookies",
+    "Cupcakes & Muffins",
+    "Frostings & Toppings",
+    "Ice Cream",
+    "Other",
+    "Pies",
+    "meat",
+    "poultry", 
+    "seafood", 
+    "other",
+    "Salads",
+    "Sauces & Dressings",
+    "Snacks",
+    "Soups"
 ]
 
 # Define measurement units
@@ -69,6 +84,7 @@ RECIPE_FIELDS = {
         "scale": "1-5"
     },
     "servings": "Number of servings",
+    "yeild": "Yield",
     "original_link": "Link to original recipe",
     "video_link": "Link to video"
 }
@@ -89,10 +105,10 @@ def build_extraction_prompt(fields=RECIPE_FIELDS):
                 ]
                 prompt += f"{key.title()} ({', '.join(subfields)}), "
             elif "scale" in value:
-                prompt += f"{value['field']} (scale from {value['scale']}), "
+                prompt += f"{value['field']} (scale from {value['scale']} Predict Difficulty if not presented with one), "
         else:
             prompt += f"{value}, "
-    
+    print(prompt)
     return prompt.rstrip(", ")
 
 def scrape_recipe(url):
@@ -112,6 +128,4 @@ import json
 def print_json(json_data):
     print(json.dumps(json_data, indent=4))
 
-# print a pretty json response
-
-print_json(scrape_recipe("https://foodsocial.io/recipe/grilled-pineapple-marinated-chicken/"))
+print_json(scrape_recipe("https://www.simplyrecipes.com/easy-brooklyn-blackout-cake-recipe-8745470"))
