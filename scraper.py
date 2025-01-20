@@ -90,69 +90,64 @@ RECIPE_FIELDS = {
     "video_link": "Link to video"
 }
 
-prompt = '''Extract the following structured information from the recipe webpage. Format your response using clear headings and maintain consistent data structures.
-
-1. Basic Information
-- Recipe Title
-- Descriptive Text/Introduction
-- Category (select ONE only):
-  Appetizers, Baked Goods, Beverages, Breakfast, Cakes, Candies, Cookies, Cupcakes & Muffins, Frostings & Toppings, Ice Cream, Pies, Meat, Poultry, Seafood, Salads, Sauces & Dressings, Snacks, Soups, Other
-
-2. Media Content
-- Recipe Photo URL (in priority order):
-  - Meta tags (og:image, twitter:image)
-  - Largest image near title
-  (ensure URL is properly formatted)
-- Video Link (if available)
-- Original Recipe URL
-
-3. Recipe Details
-- Prep Time
-- Cook Time
-- Number of Servings/Yield
-- Difficulty (1-5 scale, estimate if not provided)
-
-4. Ingredients
-List each ingredient with:
+def build_extraction_prompt(fields=RECIPE_FIELDS):
+    def format_field(key, value):
+        # Handle nested dictionary fields
+        if isinstance(value, dict):
+            # Category field with options
+            if "options" in value:
+                return f"{value['field']} (select one: {', '.join(value['options'])})"
+            
+            # Ingredients or Instructions with subfields
+            elif "fields" in value:
+                if key == "ingredients":
+                    return '''ingredients (list each with:
 - Name
-- Quantity (NUMBERS ONLY - if "2 tablespoons" appears, put "2" here)
-- Unit (MUST be one of these - intelligently infer based on context):
-  - Volume: cup(s), fl oz, gallon, ml, pint, quart, Tbsp [use for "tablespoon(s)"], tsp [use for "teaspoon(s)"]
-  - Weight: grams, lb, oz
-  - Count: clove(s), head, piece(s), pinch, sprig(s), whole
-- Additional notes
+- Quantity (numbers only)
+- Unit (must be one from: {measurement_units})
+  Rules for units:
+  - Use 'whole' for countable items (e.g., '2 eggs' → quantity: 2, unit: whole)
+  - Use 'Tbsp' for tablespoon(s)
+  - Use 'tsp' for teaspoon(s)
+  - Split combined values (e.g., '2 tablespoons' → quantity: 2, unit: Tbsp)
+- Additional notes'''.format(measurement_units=', '.join(MEASUREMENT_UNITS))
+                elif key == "instructions":
+                    return "instructions (list each with step number and description)"
+            
+            # Difficulty with scale
+            elif "scale" in value:
+                return f"{value['field']} (scale {value['scale']}, estimate if not provided)"
+        
+        # Photo field with special instructions
+        elif key == "photo":
+            return ("photo (main recipe image URL, preferably from meta tags "
+                   "'og:image'/'twitter:image' or largest image near title)")
+        
+        # Simple fields
+        else:
+            return value
 
-IMPORTANT RULES FOR UNITS:
-1. When quantity and unit appear together, separate them:
-   - CORRECT:   "Quantity": "2", "Unit": "Tbsp"
-   - INCORRECT: "Quantity": "2 tablespoons", "Unit": "Not specified"
-
-2. Use "whole" as the unit when:
-   - The ingredient is a discrete item without a specified unit (e.g., "2 eggs" → Quantity: "2", Unit: "whole")
-   - The recipe lists countable items (e.g., "3 bell peppers" → Quantity: "3", Unit: "whole")
-   - Single items are referenced (e.g., "1 onion" → Quantity: "1", Unit: "whole")
-
-Examples of correct parsing:
-"2 tablespoons shallots" → Quantity: "2", Unit: "Tbsp"
-"3 cups flour" → Quantity: "3", Unit: "cups"
-"1/2 teaspoon salt" → Quantity: "1/2", Unit: "tsp"
-"2 eggs" → Quantity: "2", Unit: "whole"
-"1 large onion" → Quantity: "1", Unit: "whole"
-"3 bell peppers, diced" → Quantity: "3", Unit: "whole"
-
-Note: Size descriptions (large, medium, small) and preparation instructions (diced, chopped, sliced) should go in Additional notes.
-
-5. Instructions
-List each step with:
-- Step number
-- Detailed description
-
-Mark any missing information as "Not specified". Return the data in a clear, structured format suitable for parsing.'''
+    # Build sections of the prompt
+    sections = [
+        "Extract the following recipe information. Return in JSON format:",
+        "Basic Information:",
+    ]
+    
+    # Add fields in a structured way
+    for key, value in fields.items():
+        formatted = format_field(key, value)
+        if formatted:
+            sections.append(f"• {formatted}")
+    
+    # Add final instructions
+    sections.append("\nUse 'Not specified' for any missing information.")
+    
+    return "\n".join(sections)
 
 def scrape_recipe(url):
     # Create the SmartScraperGraph instance and run it
     smart_scraper_graph = SmartScraperGraph(
-        prompt=prompt,
+        prompt=build_extraction_prompt(),
         source=url,
         config=graph_config
     )
@@ -163,4 +158,4 @@ def scrape_recipe(url):
 def print_json(json_data):
     print(json.dumps(json_data, indent=4))
 
-print_json(scrape_recipe("https://www.foodnetwork.com/recipes/food-network-kitchen/slow-cooker-pinto-beans-10076200"))
+print_json(scrape_recipe("https://www.foodnetwork.com/recipes/giada-de-laurentiis/chicken-florentine-style-recipe-1942850"))
