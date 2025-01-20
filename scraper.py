@@ -4,7 +4,6 @@ from dotenv import load_dotenv
 import os
 from scrapegraphai.graphs import SmartScraperGraph
 from scrapegraphai.utils import prettify_exec_info
-from validators import url as is_valid_url
 
 # Load the .env file
 load_dotenv()
@@ -91,78 +90,77 @@ RECIPE_FIELDS = {
     "video_link": "Link to video"
 }
 
-# Build the prompt dynamically
-def build_extraction_prompt(fields=RECIPE_FIELDS):
-    prompt = "Extract the following information from the recipe webpage:\n"
-    for key, value in fields.items():
-        if isinstance(value, dict):
-            if "options" in value:
-                prompt += f"{value['field']} (one from the following: {', '.join(value['options'])}), "
-            elif "fields" in value:
-                subfields = [
-                    f"{field['measurement_unit']} (one of the following: {MEASUREMENT_UNITS})" 
-                    if isinstance(field, dict) and 'measurement_unit' in field
-                    else field
-                    for field in value['fields']
-                ]
-                prompt += f"{key.title()} ({', '.join(subfields)}), "
-            elif "scale" in value:
-                prompt += f"{value['field']} (scale from {value['scale']} Predict Difficulty if not presented with one), "
-        elif key == "photo":
-            # Add specific instructions for fetching the photo
-            prompt += (
-                "Recipe Photo (retrieve the main image associated with the recipe, "
-                "preferably from meta tags like 'og:image', 'twitter:image', or the "
-                "largest image prominently displayed near the title), "
-            )
-        else:
-            prompt += f"{value}, "
-    return prompt.rstrip(", ")
+prompt = '''Extract the following structured information from the recipe webpage. Format your response using clear headings and maintain consistent data structures.
+
+1. Basic Information
+- Recipe Title
+- Descriptive Text/Introduction
+- Category (select ONE only):
+  Appetizers, Baked Goods, Beverages, Breakfast, Cakes, Candies, Cookies, Cupcakes & Muffins, Frostings & Toppings, Ice Cream, Pies, Meat, Poultry, Seafood, Salads, Sauces & Dressings, Snacks, Soups, Other
+
+2. Media Content
+- Recipe Photo URL (in priority order):
+  - Meta tags (og:image, twitter:image)
+  - Largest image near title
+  (ensure URL is properly formatted)
+- Video Link (if available)
+- Original Recipe URL
+
+3. Recipe Details
+- Prep Time
+- Cook Time
+- Number of Servings/Yield
+- Difficulty (1-5 scale, estimate if not provided)
+
+4. Ingredients
+List each ingredient with:
+- Name
+- Quantity (NUMBERS ONLY - if "2 tablespoons" appears, put "2" here)
+- Unit (MUST be one of these - intelligently infer based on context):
+  - Volume: cup(s), fl oz, gallon, ml, pint, quart, Tbsp [use for "tablespoon(s)"], tsp [use for "teaspoon(s)"]
+  - Weight: grams, lb, oz
+  - Count: clove(s), head, piece(s), pinch, sprig(s), whole
+- Additional notes
+
+IMPORTANT RULES FOR UNITS:
+1. When quantity and unit appear together, separate them:
+   - CORRECT:   "Quantity": "2", "Unit": "Tbsp"
+   - INCORRECT: "Quantity": "2 tablespoons", "Unit": "Not specified"
+
+2. Use "whole" as the unit when:
+   - The ingredient is a discrete item without a specified unit (e.g., "2 eggs" → Quantity: "2", Unit: "whole")
+   - The recipe lists countable items (e.g., "3 bell peppers" → Quantity: "3", Unit: "whole")
+   - Single items are referenced (e.g., "1 onion" → Quantity: "1", Unit: "whole")
+
+Examples of correct parsing:
+"2 tablespoons shallots" → Quantity: "2", Unit: "Tbsp"
+"3 cups flour" → Quantity: "3", Unit: "cups"
+"1/2 teaspoon salt" → Quantity: "1/2", Unit: "tsp"
+"2 eggs" → Quantity: "2", Unit: "whole"
+"1 large onion" → Quantity: "1", Unit: "whole"
+"3 bell peppers, diced" → Quantity: "3", Unit: "whole"
+
+Note: Size descriptions (large, medium, small) and preparation instructions (diced, chopped, sliced) should go in Additional notes.
+
+5. Instructions
+List each step with:
+- Step number
+- Detailed description
+
+Mark any missing information as "Not specified". Return the data in a clear, structured format suitable for parsing.'''
 
 def scrape_recipe(url):
     # Create the SmartScraperGraph instance and run it
     smart_scraper_graph = SmartScraperGraph(
-        prompt=build_extraction_prompt(),
+        prompt=prompt,
         source=url,
         config=graph_config
     )
-
     result = smart_scraper_graph.run()
-
-    def clean_url(url):
-        """
-        Clean a URL string by:
-        1. Replacing double backslashes with forward slashes
-        2. Replacing single backslashes with forward slashes
-        3. Converting multiple consecutive slashes to single slashes
-        
-        Args:
-            url (str): The URL string to clean
-            
-        Returns:
-            str: The cleaned URL string
-        """
-        # Replace double backslashes with forward slashes
-        cleaned = url.replace('\\\\', '/')
-        
-        # Replace any remaining single backslashes with forward slashes
-        cleaned = cleaned.replace('\\', '/')
-        
-        # Replace multiple consecutive slashes with a single slash
-        # (except for http:// or https://)
-        import re
-        cleaned = re.sub(r'(?<!:)/{2,}', '/', cleaned)
-    
-        return cleaned
-
-    # Sanitize the photo URL if present
-    if "Recipe Photo" in result and result["Recipe Photo"]:
-        result["Recipe Photo"] = clean_url(result["Recipe Photo"])
-
     return result
 
 # Print a pretty JSON response
 def print_json(json_data):
     print(json.dumps(json_data, indent=4))
 
-print_json(scrape_recipe("https://www.simplyrecipes.com/easy-brooklyn-blackout-cake-recipe-8745470"))
+print_json(scrape_recipe("https://www.foodnetwork.com/recipes/food-network-kitchen/slow-cooker-pinto-beans-10076200"))
