@@ -91,7 +91,7 @@ class Recipe(BaseModel):
     cook_time: int | None = None
     difficulty: int
     servings: int
-    yield_: str | None = None
+    yield_: int | None = None
     original_link: str | None = None
     video_link: str | None = None
 
@@ -124,6 +124,16 @@ def scrape_url(url: str) -> str:
         print("Classical URL detected")
         return scrape_html_classical(url)
 
+
+prompt = """ Extract structured recipe information from the given text and return it in JSON format matching the Recipe schema.
+    Notes: You are allowed to predict or infer the following information if you don't find it in the text: 
+    1- yield
+    2- prep_time
+    3- cook_time
+    4- difficulty
+    5- measurement_unit
+ """
+
 # Function to extract structured recipe information using OpenAI
 def extract_recipe(scraped_content: str) -> Recipe:
 
@@ -133,7 +143,7 @@ def extract_recipe(scraped_content: str) -> Recipe:
         messages=[
             {
                 "role": "system",
-                "content": "Extract structured recipe information from the given text and return it in JSON format matching the Recipe schema.",
+                "content": prompt,
             },
             {"role": "user", "content": scraped_content},
         ],

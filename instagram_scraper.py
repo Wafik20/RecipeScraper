@@ -4,13 +4,15 @@ from typing import Dict
 from urllib.parse import quote
 import jmespath
 import scraper as scraper
+import re
 
 INSTAGRAM_DOCUMENT_ID = "8845758582119845"  # contst id for post documents instagram.com
 
 def scrape_post(url_or_shortcode: str) -> Dict:
     """Scrape single Instagram post data"""
     if "http" in url_or_shortcode:
-        shortcode = url_or_shortcode.split("/p/")[-1].split("/")[0]
+        match = re.search(r"/(p|reel)/([^/?]+)", url_or_shortcode) # get either a reel or post
+        shortcode =  match.group(2) if match else url_or_shortcode  # Return extracted shortcode or original input
     else:
         shortcode = url_or_shortcode
     print(f"scraping instagram post: {shortcode}")
