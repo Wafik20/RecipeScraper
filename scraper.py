@@ -126,12 +126,12 @@ def scrape_url(url: str) -> str:
 
 
 prompt = """ Extract structured recipe information from the given text and return it in JSON format matching the Recipe schema.
-    Notes: You are allowed to predict or infer the following information if you don't find it in the text: 
-    1- yield
-    2- prep_time
-    3- cook_time
-    4- difficulty
-    5- measurement_unit
+    Notes: You are allowed to predict or infer the following information if you don't find it in the text:
+    2- measurement_unit
+    3- yield
+    4- prep_time
+    5- cook_time
+    6- difficulty
  """
 
 # Function to extract structured recipe information using OpenAI
