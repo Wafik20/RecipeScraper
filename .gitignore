@@ -1,3 +1,4 @@
 .env
 llm_scraper/
 __pycache__/
+.vscode/

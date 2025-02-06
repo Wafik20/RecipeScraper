@@ -6,6 +6,9 @@ from enum import Enum
 from fastapi import FastAPI, HTTPException
 import requests
 from bs4 import BeautifulSoup
+from urllib.parse import urlparse
+import instagram_scraper as instagram_scraper
+import uvicorn
 
 # Load the .env file
 load_dotenv()
@@ -94,23 +97,35 @@ class Recipe(BaseModel):
 
 
 # Function to scrape the webpage and extract raw HTML
-def scrape_html(url: str) -> str:
+def scrape_html_classical(url: str) -> str:
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     }
     try:
         response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
-        return response.text
+        html_content = response.text
+        soup = BeautifulSoup(html_content, "html.parser")
+        cleaned_text = soup.get_text()
+        return cleaned_text
+    
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=400, detail=f"Error fetching the URL: {str(e)}")
 
+def is_instagram_url(url: str) -> bool:
+    parsed_url = urlparse(url)
+    return parsed_url.netloc.endswith("instagram.com")
+
+def scrape_url(url: str) -> str:
+    if(is_instagram_url(url)):
+        print("Instagram URL detected")
+        return instagram_scraper.get_instagram_post(url)
+    else:
+        print("Classical URL detected")
+        return scrape_html_classical(url)
 
 # Function to extract structured recipe information using OpenAI
-def extract_recipe(html_content: str) -> Recipe:
-    # Clean the HTML using BeautifulSoup
-    soup = BeautifulSoup(html_content, "html.parser")
-    cleaned_text = soup.get_text()
+def extract_recipe(scraped_content: str) -> Recipe:
 
     # Call OpenAI API to extract structured data
     completion = client.beta.chat.completions.parse(
@@ -120,7 +135,7 @@ def extract_recipe(html_content: str) -> Recipe:
                 "role": "system",
                 "content": "Extract structured recipe information from the given text and return it in JSON format matching the Recipe schema.",
             },
-            {"role": "user", "content": cleaned_text},
+            {"role": "user", "content": scraped_content},
         ],
         response_format=Recipe,
     )
@@ -133,6 +148,9 @@ def extract_recipe(html_content: str) -> Recipe:
 # API endpoint to extract recipe from a URL
 @app.get("/recipe", response_model=Recipe)
 def get_recipe(url: str):
-    html_content = scrape_html(url)
-    recipe = extract_recipe(html_content)
+    scraped_content = scrape_url(url)
+    recipe = extract_recipe(scraped_content)
     return recipe
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
