@@ -32,8 +32,4 @@ Hit the endpoint:
 ```sh
 GET /recipe?url=your_recipe_url
 ```
-
-## License
-MIT
-
 ****
