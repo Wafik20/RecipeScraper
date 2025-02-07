@@ -10,7 +10,7 @@ A fast API that scrapes recipes from websites, extracts structured data using an
 ## Installation
 1. Clone the repo:
    ```sh
-   git clone https://github.com/yourusername/recipe-scraper.git
+   git clone https://github.com/Wafik20/RecipeScraper
    cd recipe-scraper
    ```
 2. Install dependencies:
